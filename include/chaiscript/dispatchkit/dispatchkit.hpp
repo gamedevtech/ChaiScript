@@ -465,6 +465,7 @@ namespace chaiscript
         /// Adds a new global shared object, between all the threads
         void add_global_const(const Boxed_Value &obj, const std::string &name)
         {
+          m_lookup_caches.clear();
           validate_object_name(name);
           if (!obj.is_const())
           {
@@ -485,6 +486,7 @@ namespace chaiscript
         /// Adds a new global (non-const) shared object, between all the threads
         void add_global(const Boxed_Value &obj, const std::string &name)
         {
+          m_lookup_caches.clear();
           validate_object_name(name);
 
           chaiscript::detail::threading::unique_lock<chaiscript::detail::threading::shared_mutex> l(m_global_object_mutex);
@@ -531,14 +533,29 @@ namespace chaiscript
           m_stack_holder->stacks.pop_back();
         }
 
+
+        mutable std::map<const AST_Node *, std::pair<std::shared_ptr<Boxed_Value::Data>, std::weak_ptr<const AST_Node>>> m_lookup_caches;
+
+
         /// Searches the current stack for an object of the given name
         /// includes a special overload for the _ place holder object to
         /// ensure that it is always in scope.
-        Boxed_Value get_object(const std::string &name) const
+        Boxed_Value get_object(const std::string &name, const std::shared_ptr<const AST_Node> &ptr) const
         {
+          auto &lookup_cache = m_lookup_caches[ptr.get()];
+
+          if (lookup_cache.first && !lookup_cache.second.expired()) {
+//            std::cout << "cached: " << ptr << std::endl;
+              return Boxed_Value(lookup_cache.first, true);
+          } else {
+//            std::cout << "not cached: " << ptr << std::endl;
+          }
+
           // Is it a placeholder object?
           if (name == "_")
           {
+            lookup_cache.first = m_place_holder.m_data;
+            lookup_cache.second = ptr;
             return m_place_holder;
           }
 
@@ -561,12 +578,17 @@ namespace chaiscript
             const auto itr = m_state.m_global_objects.find(name);
             if (itr != m_state.m_global_objects.end())
             {
+              lookup_cache.first = itr->second.m_data;
+              lookup_cache.second = ptr;
               return itr->second;
             }
           }
 
           // If all that failed, then check to see if it's a function
-          return get_function_object(name);
+          Boxed_Value f(get_function_object(name));
+          lookup_cache.first = f.m_data;
+          lookup_cache.second = ptr;
+          return f;
         }
 
         /// Registers a new named type
@@ -1152,7 +1174,7 @@ namespace chaiscript
             func_objs[t_name] = t_f;
           }
 
-
+          m_lookup_caches.clear();
         }
 
         mutable chaiscript::detail::threading::shared_mutex m_mutex;

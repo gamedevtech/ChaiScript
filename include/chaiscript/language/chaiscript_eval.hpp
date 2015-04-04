@@ -162,7 +162,7 @@ namespace chaiscript
             return m_value;
           } else {
             try {
-              return t_ss.get_object(this->text);
+              return t_ss.get_object(this->text, shared_from_this());
             }
             catch (std::exception &) {
               throw exception::eval_error("Can not find object: " + this->text);
@@ -301,7 +301,7 @@ namespace chaiscript
 
         virtual Boxed_Value eval_internal(chaiscript::detail::Dispatch_Engine &t_ss) const CHAISCRIPT_OVERRIDE {
           try {
-            Boxed_Value bv = t_ss.get_object(text);
+            Boxed_Value bv = t_ss.get_object(text, shared_from_this());
             t_ss.add_object(text, bv);
             std::cout << " Saved fun lookup: " << text << '\n';
             return bv;

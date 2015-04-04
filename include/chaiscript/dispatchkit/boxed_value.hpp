@@ -30,7 +30,7 @@ namespace chaiscript
       {
       };
 
-    private:
+//    private:
       /// structure which holds the internal state of a Boxed_Value
       /// \todo Get rid of Any and merge it with this, reducing an allocation in the process
       struct Data
@@ -280,7 +280,12 @@ namespace chaiscript
         return l.get_type_info() == r.get_type_info();
       }
 
-    private:
+      explicit Boxed_Value(const std::shared_ptr<Data> &t_data, bool)
+        : m_data(t_data)
+      {
+      }
+
+//    private:
       std::shared_ptr<Data> m_data;
   };
 
